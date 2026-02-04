@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Analyseur Sondage Pronote — Export PDF direct</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#f7f8fb; --panel:#ffffff; --ink:#0f172a; --muted:#475569;
+    --accent:#2563eb; --accent-2:#059669; --grid:#e2e8f0; --card:#f1f5f9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans",sans-serif}
+  h1,h2,h3{margin:0 0 .5rem}
+  .app{max-width:1100px;margin:24px auto;padding:0 16px 48px}
+
+  header.appbar{
+    display:flex;gap:16px;align-items:center;justify-content:space-between;
+    background:var(--panel);border:1px solid var(--grid);padding:14px 16px;border-radius:12px;
+    position:sticky;top:12px;z-index:5;box-shadow:0 8px 24px rgba(15,23,42,.06)
+  }
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:36px;height:36px;border-radius:9px;background:conic-gradient(from 0deg at 60% 40%, var(--accent), var(--accent-2) 40%, #9333ea 75%, var(--accent))}
+  .brand h1{font-size:18px;font-weight:700}
+  .hint{color:var(--muted);font-size:12px}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .controls .btn{background:#eef2ff;border:1px solid var(--grid);color:#1e293b;padding:10px 12px;border-radius:10px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+  .controls .btn:hover{background:#e0e7ff}
+  .mode{display:inline-flex;align-items:center;gap:10px;background:#eef2ff;border:1px solid var(--grid);border-radius:20px;padding:6px 10px}
+  .toggle{position:relative;width:64px;height:28px;background:#cbd5e1;border-radius:18px;border:1px solid #94a3b8;cursor:pointer}
+  .toggle .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .25s ease}
+  .toggle.on .knob{transform:translateX(36px)}
+
+  .workspace{margin-top:18px;display:grid;grid-template-columns:1fr;gap:16px}
+  .panel{padding:16px;border:1px solid var(--grid);border-radius:12px;background:var(--panel)}
+  .panel h3{margin-bottom:8px;font-size:15px}
+  .small{font-size:12px;color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  textarea{
+    width:100%;min-height:150px;resize:vertical;background:#f8fafc;border:1px solid var(--grid);
+    border-radius:10px;color:#0f172a;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"DejaVu Sans Mono",monospace
+  }
+  .status{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+  .badge{display:inline-block;background:#f1f5f9;border:1px solid var(--grid);border-radius:999px;padding:3px 8px}
+
+  .results{display:flex;flex-direction:column;gap:12px;width:100%}
+  .qcard{
+    background:var(--panel);border:1px solid var(--grid);border-radius:12px;
+    padding:8px 12px;min-height:250px;display:flex;flex-direction:column;gap:6px;
+    width:100%; /* Largeur fixe */
+    max-width:100%; /* Empêche le débordement */
+    overflow:hidden; /* Cache tout débordement */
+  }
+  .qhead{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;width:100%}
+  .qtitle{font-size:15px;line-height:1.3;font-weight:650;max-width:86%;word-wrap:break-word}
+  .qmeta{color:var(--muted);font-size:12px;text-align:right}
+  .chart{height:200px;width:100%;background:var(--card);border:1px solid var(--grid);border-radius:10px;position:relative;overflow:hidden}
+  svg{display:block;width:100%;height:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;overflow:hidden;width:100%}
+  .legend .item{display:inline-flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid var(--grid);padding:4px 6px;border-radius:8px;font-size:11px;max-width:100%;word-break:break-word}
+  .legend .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;flex-shrink:0}
+
+  .free{background:#f8fafc;border:1px solid var(--grid);border-radius:10px;padding:6px 8px;max-height:180px;overflow:auto;width:100%}
+  .free ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;width:100%}
+  .free li{display:flex;gap:8px;align-items:flex-start;font-size:13px;width:100%}
+  .tag{font-size:11px;color:#064e3b;background:#a7f3d0;border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .pill{font-size:11px;color:#1e293b;background:#bfdbfe;border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .muted{color:var(--muted)}
+
+  /* Indicateur de qualité */
+  .quality-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #475569;
+  }
+  .quality-badge {
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 10px;
+  }
+  .quality-normal {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .quality-high {
+    background: #fef3c7;
+    color: #92400e;
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="appbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Analyseur Sondage Pronote</h1>
+          <div class="hint">Colle le questionnaire et le CSV large, bascule l'affichage, puis exporte un PDF fichier soigné</div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="mode">
+          <span class="small">Histogramme</span>
+          <div id="toggle" class="toggle" role="switch" aria-checked="false" tabindex="0"><div class="knob"></div></div>
+          <span class="small">Anneau</span>
+        </div>
+        <div class="mode">
+          <span class="small">Qualité normale</span>
+          <div id="qualityToggle" class="toggle" role="switch" aria-checked="false" tabindex="0"><div class="knob"></div></div>
+          <span class="small">Haute qualité</span>
+        </div>
+        <div class="quality-indicator">
+          <span id="qualityStatus" class="quality-badge quality-normal">Taille réduite</span>
+        </div>
+        <button class="btn" id="exportBtn" type="button">🧾 Exporter PDF</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <section class="panel">
+        <h3>1) Coller le texte du questionnaire</h3>
+        <p class="small">Colle le bloc "Question 1 …" puis clique Analyser le texte; l'ordre des options est conservé.</p>
+        <textarea id="pasteText" placeholder="Ex.: Question 1 … Oui / Non … Question 2 …"></textarea>
+        <div class="row">
+          <button class="btn" id="analyzeTextBtn" type="button">▶️ Analyser le texte</button>
+          <div class="status" id="textStatus"><span class="badge">En attente de texte</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>2) Coller les données CSV (format large)</h3>
+        <p class="small">Colle le tableau avec entêtes "Question n" en colonnes, la ligne d'étiquettes ("répondu | Oui | Non …"), la ligne de cohorte "Libellé (N)" avec pourcentages, et/ou les lignes individuelles "X".</p>
+        <textarea id="pasteCSV" placeholder="Colle ici le CSV tabulé/;/, tel que copié depuis le tableur"></textarea>
+        <div class="row">
+          <button class="btn" id="analyzeCSVBtn" type="button">▶️ Analyser le CSV</button>
+          <div class="status" id="csvStatus"><span class="badge">En attente de CSV collé</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Résultats</h3>
+        <div id="results" class="results" aria-live="polite"></div>
+      </section>
+    </div>
+  </div>
+
+<script>
+/* ===== État ===== */
+const state = {
+  mode: localStorage.getItem('chart-mode') || 'bar',
+  quality: localStorage.getItem('pdf-quality') || 'normal', // 'normal' ou 'high'
+  textQuestions: [],
+  csvQuestions: [],
+  questions: []
+};
+const COLORS = ['#2563eb','#059669','#f59e0b','#9333ea','#ef4444','#0ea5e9','#22c55e','#eab308','#a78bfa','#fb7185'];
+
+/* ===== Utilitaires ===== */
+const pctRound = v => Math.round((v + Number.EPSILON) * 100) / 100;
+const deburr = s => (s||'').toString().normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
+const sameLabel = (a,b) => deburr(a) === deburr(b);
+
+/* ===== Parsing du questionnaire collé ===== */
+function parseQuestionnaireText(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim());
+  let start = lines.findIndex(l=>/^Question[\s\u00A0]+\d+/i.test(l));
+  if (start<0) return [];
+  const L = lines.slice(start);
+  const idxs = [];
+  for (let i=0;i<L.length;i++){ if (/^Question[\s\u00A0]+\d+/i.test(L[i])) idxs.push(i); }
+  const out=[];
+  for (let k=0;k<idxs.length;k++){
+    const s = idxs[k], e = k<idxs.length-1 ? idxs[k+1] : L.length;
+    const block = L.slice(s,e).filter(Boolean);
+    const qnum = block[0].match(/^Question[\s\u00A0]+(\d+)/i)?.[1] ?? '';
+    let tIdx=1; while (tIdx<block.length && !block[tIdx]) tIdx++;
+    const title = block[tIdx] || `Question ${qnum}`;
+    const opts=[];
+    for (let i=tIdx+1;i<block.length;i++){
+      const l = block[i];
+      if (/^Question[\s\u00A0]+\d+/i.test(l)) break;
+      const line = l.replace(/^[–\-•]\s*/,'');
+      if (line.length) opts.push(line);
+      if (opts.length>=30) break;
+    }
+    out.push(opts.length ? {number:qnum, title, type:'choices', options:opts}
+                         : {number:qnum, title, type:'free', options:[]});
+  }
+  return out;
+}
+
+/* ===== CSV (robuste) ===== */
+function sniffDelimiter(sample){
+  const scores = {'\t':0,';':0,',':0};
+  const lines = sample.split(/\r?\n/).slice(0,5);
+  for (const l of lines){ for (const d of Object.keys(scores)) scores[d] += (l.split(d).length-1); }
+  return Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function splitCSVLine(line, delim){
+  const out=[]; let cur=''; let q=false;
+  for (let i=0;i<line.length;i++){
+    const ch=line[i];
+    if (q){
+      if (ch === '"' && line[i+1] === '"'){ cur+='"'; i++; }
+      else if (ch === '"'){ q=false; }
+      else { cur += ch; }
+    } else {
+      if (ch === '"'){ q=true; }
+      else if (ch === delim){ out.push(cur.trim()); cur=''; }
+      else { cur += ch; }
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
+function parseCSVTable(text){
+  const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const delim = sniffDelimiter(t);
+  const rows = t.split('\n').map(l=>splitCSVLine(l, delim));
+  while (rows.length && rows[rows.length-1].every(c=>!c)) rows.pop();
+  return rows;
+}
+
+/* ===== Format Pronote "large" ===== */
+function parseCSVPronoteLarge(rows){
+  if (rows.length < 3) return [];
+  const h1 = rows[0], h2 = rows[1] || [];
+  const qCols = [];
+  for (let i=0;i<h1.length;i++){
+    const cell = h1[i] || '';
+    const m = cell.match(/Question\s*(\d+)/i);
+    if (m) qCols.push({idx:i, num:m[1]});
+  }
+  if (!qCols.length) return [];
+
+  // Détecter ligne cohorte "Libellé (N)"
+  let cohortRow = -1;
+  for (let r=0;r<rows.length;r++){
+    const first = ((rows[r][0]||'') + ' ' + (rows[r][1]||'')).trim();
+    if (/\(\s*\d+\s*\)/.test(first)) { cohortRow = r; break; }
+  }
+
+  const questions = [];
+  for (let k=0;k<qCols.length;k++){
+    const start = qCols[k].idx;
+    const end = (k<qCols.length-1 ? qCols[k+1].idx : h1.length);
+    // Étiquettes en 2e ligne (ignorer "répondu")
+    const labels = [];
+    for (let c=start;c<end;c++){
+      const lab = (h2[c]||'').replace(/^"(.*)"$/,'$1').trim();
+      if (!lab || /^r[ée]pondu/i.test(lab)) continue;
+      labels.push({label: lab, col:c});
+    }
+    let series = [];
+    if (cohortRow >= 0){
+      const row = rows[cohortRow];
+      series = labels.map(({label,col})=>{
+        const raw = (row[col]||'').toString().replace(',','.');
+        let v = 0;
+        if (/%/.test(raw)) v = parseFloat(raw.replace('%',''));
+        else if (/^\d*\.?\d+$/.test(raw)){ const f=parseFloat(raw); v = f<=1 ? f*100 : f; }
+        if (!Number.isFinite(v)) v = 0;
+        return {label, value: pctRound(v)};
+      });
+    } else {
+      // Calcul depuis les "X"
+      const idxStart = 2;
+      const counts = labels.map(()=>0);
+      for (let r=idxStart;r<rows.length;r++){
+        const joinedFirst = ((rows[r][0]||'') + ' ' + (rows[r][1]||'')).trim();
+        if (/\(\s*\d+\s*\)/.test(joinedFirst)) continue; // cohorte
+        labels.forEach(({col},i)=>{
+          const v = (rows[r][col]||'').trim();
+          if (/^x$/i.test(v)) counts[i] += 1;
+        });
+      }
+      const total = counts.reduce((a,b)=>a+b,0) || 1;
+      series = labels.map(({label},i)=>({label, value: pctRound(100*counts[i]/total)}));
+    }
+    questions.push({number:qCols[k].num, title:`Question ${qCols[k].num}`, type:'choices', data: series});
+  }
+  return questions;
+}
+function parseCSVGeneric(rows){
+  if (!rows.length) return [];
+  const header = rows[0].map(h=>deburr(h||''));
+  const body = rows.slice(1).filter(r=>r.some(x=>x && x.length));
+  let cQ = header.findIndex(h=>/(^q(uestion)?$)|(^titre$)|(^title$)/.test(h)); if (cQ<0) cQ=0;
+  let cL = header.findIndex(h=>/(reponse|reponses|option|choix|label|intitule)/.test(h)); if (cL<0) cL=1;
+  let cP = header.findIndex(h=>/(pourc|percent|pourcentage|%|valeur|value)/.test(h));
+  let cN = header.findIndex(h=>/(nombre|effectif|count)/.test(h));
+  const map=new Map();
+  for (const r of body){
+    const qraw=r[cQ]??''; const qnum=String(qraw).match(/(\d+)/)?.[1]??''; const key=qnum?`#${qnum}`:`t:${deburr(qraw)}`;
+    const label=r[cL]??''; const pv=cP>=0?parseFloat(String(r[cP]).replace(',','.').replace('%','')):NaN; const nv=cN>=0?parseFloat(String(r[cN]).replace(',','.')):NaN;
+    if (!map.has(key)) map.set(key,{number:qnum,title:qraw,rows:[]}); map.get(key).rows.push({label,p:pv,n:nv});
+  }
+  const out=[];
+  for (const {number,title,rows:rws} of map.values()){
+    const hasP=rws.some(r=>Number.isFinite(r.p));
+    let series=[];
+    if (hasP) series=rws.filter(r=>r.label).map(r=>({label:r.label,value:pctRound(r.p)}));
+    else { const tot=rws.reduce((a,r)=>a+(Number.isFinite(r.n)?r.n:0),0)||1; series=rws.filter(r=>r.label).map(r=>({label:r.label,value:pctRound(100*(Number.isFinite(r.n)?r.n:0)/tot)})); }
+    out.push({number,title,type:'choices',data:series});
+  }
+  return out;
+}
+function parseCSVSmart(text){
+  const rows = parseCSVTable(text);
+  const hasWide = rows[0]?.some(c=>/Question\s*\d+/i.test(c||''));
+  return hasWide ? parseCSVPronoteLarge(rows) : parseCSVGeneric(rows);
+}
+
+/* ===== Fusion ===== */
+function fuseData(textQs, csvQs){
+  const byNum = new Map(csvQs.map(q=>[q.number ? `#${q.number}` : `t:${deburr(q.title)}`, q]));
+  const fused=[];
+  for (const tq of textQs){
+    const key = tq.number ? `#${tq.number}` : `t:${deburr(tq.title)}`;
+    const cq = byNum.get(key);
+    if (tq.type==='choices'){
+      let series=[];
+      if (cq && cq.data?.length){
+        if (tq.options?.length){
+          series = tq.options.map(o=>{
+            const hit = cq.data.find(d=>sameLabel(d.label,o));
+            return {label:o, value: hit ? pctRound(hit.value) : 0};
+          });
+        } else {
+          series = cq.data.map(d=>({label:d.label, value:pctRound(d.value)}));
+        }
+      } else {
+        series = (tq.options||[]).map(o=>({label:o, value:0}));
+      }
+      fused.push({number:tq.number, title:tq.title, type:'choices', data:series});
+    } else {
+      fused.push({number:tq.number, title:tq.title, type:'free', free:[]});
+    }
+  }
+  return fused.length ? fused : csvQs;
+}
+
+/* ===== Rendu à l'écran (SVG) avec largeur fixe ===== */
+function renderBarChart(container, series){
+  container.innerHTML='';
+  const W = container.clientWidth || 800;
+  const H = 200; // Hauteur fixe
+  
+  // Calculer la largeur des barres en fonction du nombre de réponses
+  const maxBarWidth = 60; // Largeur maximale d'une barre
+  const minBarWidth = 20; // Largeur minimale d'une barre
+  const gap = 10; // Espacement entre les barres
+  
+  // Calculer la largeur totale nécessaire
+  const totalWidthNeeded = series.length * (maxBarWidth + gap);
+  
+  // Ajuster la largeur des barres si nécessaire
+  let barWidth = maxBarWidth;
+  if (totalWidthNeeded > W) {
+    barWidth = Math.max(minBarWidth, (W - (series.length * gap)) / series.length);
+  }
+  
+  const svg = makeSVG('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%'});
+  
+  // Grille de fond
+  const grid = makeSVG('g',{});
+  for (let x=0;x<=10;x++){ 
+    const xx=Math.round(x*W/10); 
+    grid.appendChild(makeSVG('line',{x1:xx,y1:0,x2:xx,y2:H,stroke:'#e2e8f0','stroke-width':1})); 
+  }
+  svg.appendChild(grid);
+
+  const maxVal = Math.max(100, ...series.map(s=>s.value));
+  const padding = 20;
+  const baseY = H - 30;
+
+  series.forEach((s,i)=>{
+    const availableWidth = W - (padding * 2);
+    const x = padding + i * (barWidth + gap);
+    const h = Math.round((s.value/maxVal)*(H-60));
+    const y = baseY - h;
+    const color = COLORS[i%COLORS.length];
+    
+    // Barre
+    svg.appendChild(makeSVG('rect',{x,y,width:barWidth,height:h,fill:color,rx:4,ry:4}));
+    
+    // Pourcentage au-dessus de la barre
+    svg.appendChild(makeSVG('text',{
+      x:x+barWidth/2,
+      y:y-6,
+      'text-anchor':'middle',
+      'font-size':12,
+      fill:'#0f172a'
+    }, `${pctRound(s.value)}%`));
+    
+    // Libellé sous la barre (avec gestion du texte multiligne)
+    const labelLines = wrapTextToLines(s.label, 12); // 12 caractères max par ligne
+    labelLines.forEach((line, lineIndex) => {
+      svg.appendChild(makeSVG('text',{
+        x:x+barWidth/2,
+        y:baseY + 14 + (lineIndex * 12),
+        'text-anchor':'middle',
+        'font-size':10,
+        fill:'#475569'
+      }, line));
+    });
+  });
+  container.appendChild(svg);
+}
+
+function renderDonutChart(container, series){
+  container.innerHTML='';
+  const W = container.clientWidth || 800;
+  const H = 200; // Hauteur fixe
+  
+  const svg = makeSVG('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%'});
+  
+  const cx = Math.floor(W/2);
+  const cy = Math.floor(H/2);
+  const outer = Math.min(W, H) * 0.35; // Taille réduite pour s'adapter
+  const inner = outer * 0.6;
+  const total = series.reduce((a,b)=>a+b.value,0) || 1;
+  
+  let angle = -Math.PI/2;
+  series.forEach((s,i)=>{
+    const frac = s.value/total;
+    const a2 = angle + frac * 2 * Math.PI;
+    const large = frac > 0.5 ? 1 : 0;
+    const color = COLORS[i%COLORS.length];
+    
+    const p1 = polar(cx,cy,outer,angle);
+    const p2 = polar(cx,cy,outer,a2);
+    const q1 = polar(cx,cy,inner,a2);
+    const q2 = polar(cx,cy,inner,angle);
+    
+    const d = `M ${p1.x} ${p1.y} A ${outer} ${outer} 0 ${large} 1 ${p2.x} ${p2.y} L ${q1.x} ${q1.y} A ${inner} ${inner} 0 ${large} 0 ${q2.x} ${q2.y} Z`;
+    svg.appendChild(makeSVG('path',{d, fill:color}));
+    
+    const mid = angle + (a2-angle)/2;
+    const lab = polar(cx,cy,(outer+inner)/2,mid);
+    svg.appendChild(makeSVG('text',{
+      x:lab.x,
+      y:lab.y+4,
+      'text-anchor':'middle',
+      'font-size':10,
+      fill:'#0f172a',
+      style:'font-weight:650'
+    }, `${pctRound(s.value)}%`));
+    
+    angle = a2;
+  });
+  
+  container.appendChild(svg);
+}
+
+// Fonction utilitaire pour diviser le texte en lignes
+function wrapTextToLines(text, maxCharsPerLine) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    if ((currentLine + ' ' + word).length <= maxCharsPerLine) {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word.length > maxCharsPerLine ? word.substring(0, maxCharsPerLine) + '...' : word;
+    }
+  }
+  
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function polar(cx,cy,r,a){ 
+  return {
+    x: Math.round(cx + r * Math.cos(a)), 
+    y: Math.round(cy + r * Math.sin(a))
+  }; 
+}
+
+function makeSVG(tag, attrs, text){ 
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag); 
+  for(const k in attrs){ 
+    el.setAttribute(k, attrs[k]); 
+  } 
+  if (text) el.textContent = text; 
+  return el; 
+}
+
+/* ===== Rendu global ===== */
+function renderAll(){
+  const root = document.getElementById('results');
+  root.innerHTML = '';
+  
+  if (!state.questions.length){
+    root.innerHTML = `<div class="small muted">Colle le texte et le CSV, puis clique sur les boutons Analyser.</div>`;
+    return;
+  }
+  
+  state.questions.forEach((q,idx)=>{
+    const card = document.createElement('article'); 
+    card.className = 'qcard';
+    
+    const head = document.createElement('div'); 
+    head.className = 'qhead';
+    
+    const title = document.createElement('div'); 
+    title.className = 'qtitle'; 
+    title.textContent = `Q${q.number ? q.number : idx+1} — ${q.title}`;
+    
+    const meta = document.createElement('div'); 
+    meta.className = 'qmeta'; 
+    meta.innerHTML = q.type === 'choices' ? `<span class="pill">Choix</span>` : `<span class="tag">Libre</span>`;
+    
+    head.append(title, meta); 
+    card.appendChild(head);
+
+    if (q.type === 'choices'){
+      const chart = document.createElement('div'); 
+      chart.className = 'chart'; 
+      card.appendChild(chart);
+      
+      const legend = document.createElement('div'); 
+      legend.className = 'legend';
+      
+      q.data.forEach((d,i)=>{ 
+        const it = document.createElement('div'); 
+        it.className = 'item'; 
+        
+        const sw = document.createElement('span'); 
+        sw.className = 'swatch'; 
+        sw.style.background = COLORS[i%COLORS.length]; 
+        
+        const txt = document.createElement('span'); 
+        // Gérer les libellés longs dans la légende
+        const labelText = d.label.length > 30 ? d.label.substring(0, 27) + '...' : d.label;
+        txt.textContent = `${labelText} — ${pctRound(d.value)}%`; 
+        
+        it.append(sw, txt); 
+        legend.appendChild(it); 
+      });
+      
+      card.appendChild(legend);
+      
+      if (state.mode === 'bar') {
+        renderBarChart(chart, q.data);
+      } else {
+        renderDonutChart(chart, q.data);
+      }
+    } else {
+      const box = document.createElement('div'); 
+      box.className = 'free';
+      const ul = document.createElement('ul');
+      const data = q.free?.slice(0,60) || [];
+      
+      if (!data.length){ 
+        const li = document.createElement('div'); 
+        li.className = 'muted small'; 
+        li.textContent = 'Aucune réponse libre détectée.'; 
+        box.appendChild(li); 
+      } else { 
+        data.forEach(item=>{ 
+          const li = document.createElement('li'); 
+          const freq = document.createElement('span'); 
+          freq.className = 'tag'; 
+          freq.textContent = `×${item.n}`; 
+          const txt = document.createElement('span'); 
+          txt.textContent = item.text; 
+          li.append(freq, txt); 
+          ul.appendChild(li); 
+        }); 
+        box.appendChild(ul); 
+      }
+      card.appendChild(box);
+    }
+    root.appendChild(card);
+  });
+}
+
+/* ===== Export PDF avec qualité sélectionnable ===== */
+async function exportPDF(){
+  if (!state.questions.length){ 
+    alert('Aucune donnée à exporter'); 
+    return; 
+  }
+  
+  try {
+    // Afficher un indicateur de chargement
+    const exportBtn = document.getElementById('exportBtn');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = state.quality === 'high' ? '⏳ Génération PDF (Haute qualité)...' : '⏳ Génération PDF...';
+    exportBtn.disabled = true;
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    
+    // En-tête du document
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rapport d\'analyse du sondage', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
+    
+    let yPosition = 50; // Position verticale initiale
+    
+    // Ajouter chaque question
+    for (let i = 0; i < state.questions.length; i++) {
+      const q = state.questions[i];
+      
+      // Vérifier si on doit ajouter une nouvelle page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      // Titre de la question
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      const questionTitle = `Q${q.number || i + 1} — ${q.title}`;
+      const titleLines = doc.splitTextToSize(questionTitle, 180);
+      doc.text(titleLines, 20, yPosition);
+      yPosition += titleLines.length * 7 + 5;
+      
+      if (q.type === 'choices') {
+        // Créer un canvas selon la qualité sélectionnée
+        const canvas = document.createElement('canvas');
+        
+        if (state.quality === 'high') {
+          // Mode haute qualité
+          canvas.width = 1200; // Haute résolution
+          canvas.height = 600;
+          drawHighQualityChartOnCanvas(canvas, q.data, state.mode);
+          // Utiliser PNG pour la haute qualité
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          doc.addImage(imgData, 'PNG', 20, yPosition, 170, 80);
+        } else {
+          // Mode qualité normale
+          canvas.width = 600; // Résolution standard
+          canvas.height = 300;
+          drawOptimizedChartOnCanvas(canvas, q.data, state.mode);
+          // Utiliser JPEG compressé pour la taille réduite
+          const imgData = canvas.toDataURL('image/jpeg', 0.7);
+          doc.addImage(imgData, 'JPEG', 20, yPosition, 170, 80);
+        }
+        
+        yPosition += 90;
+        
+        // Légende
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        
+        let legendX = 20;
+        let legendY = yPosition;
+        
+        q.data.forEach((item, idx) => {
+          const legendText = `${item.label} — ${pctRound(item.value)}%`;
+          const textWidth = doc.getTextWidth(legendText);
+          
+          // Vérifier si on dépasse la largeur de la page
+          if (legendX + textWidth > 180) {
+            legendX = 20;
+            legendY += 5;
+            yPosition += 5;
+          }
+          
+          // Carré de couleur
+          doc.setFillColor(COLORS[idx % COLORS.length]);
+          doc.rect(legendX, legendY - 3, 4, 4, 'F');
+          
+          // Texte
+          doc.text(legendText, legendX + 6, legendY);
+          
+          legendX += textWidth + 15;
+        });
+        
+        yPosition += 15;
+      } else {
+        // Pour les questions libres
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Réponses libres - Données non disponibles pour l\'export', 20, yPosition);
+        yPosition += 15;
+      }
+      
+      yPosition += 10; // Espace entre les questions
+    }
+    
+    // Pied de page avec indication de qualité
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    const qualityText = state.quality === 'high' ? ' (Haute qualité)' : ' (Taille optimisée)';
+    doc.text('Document généré par Analyseur Sondage Pronote' + qualityText, 105, 280, { align: 'center' });
+    
+    // Télécharger le PDF
+    const fileName = state.quality === 'high' ? 'rapport-sondage-hq.pdf' : 'rapport-sondage.pdf';
+    doc.save(fileName);
+    
+    // Restaurer le bouton
+    exportBtn.innerHTML = originalText;
+    exportBtn.disabled = false;
+    
+  } catch (error) {
+    console.error('Erreur lors de l\'export PDF:', error);
+    alert('Erreur lors de l\'export PDF: ' + error.message);
+    
+    // Restaurer le bouton en cas d'erreur
+    const exportBtn = document.getElementById('exportBtn');
+    exportBtn.innerHTML = '🧾 Exporter PDF';
+    exportBtn.disabled = false;
+  }
+}
+
+/* Dessiner un graphique optimisé pour le PDF (qualité normale) */
+function drawOptimizedChartOnCanvas(canvas, data, mode) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Anticrénelage standard
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
+  
+  // Fond blanc
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  
+  if (mode === 'bar') {
+    // Graphique en barres optimisé
+    const maxVal = Math.max(...data.map(d => d.value), 100);
+    const barWidth = Math.max(25, Math.min(60, (width - 100) / data.length));
+    const chartHeight = height - 80;
+    
+    // Axes
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(50, 30);
+    ctx.lineTo(50, chartHeight);
+    ctx.lineTo(width - 30, chartHeight);
+    ctx.stroke();
+    
+    // Barres
+    data.forEach((item, i) => {
+      const barHeight = (item.value / maxVal) * (chartHeight - 50);
+      const x = 60 + i * (barWidth + 10);
+      const y = chartHeight - barHeight;
+      
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fillRect(x, y, barWidth, barHeight);
+      
+      // Valeur
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pctRound(item.value)}%`, x + barWidth / 2, y - 8);
+      
+      // Label
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px Arial';
+      const labelLines = wrapTextToLines(item.label, 12);
+      labelLines.forEach((line, lineIndex) => {
+        ctx.fillText(line, x + barWidth / 2, chartHeight + 12 + (lineIndex * 12));
+      });
+    });
+  } else {
+    // Graphique en anneau optimisé
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.3;
+    const innerRadius = radius * 0.6;
+    
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    let startAngle = -Math.PI / 2;
+    
+    data.forEach((item, i) => {
+      const sliceAngle = (item.value / total) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+      
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      
+      const midAngle = startAngle + sliceAngle / 2;
+      const textRadius = (radius + innerRadius) / 2;
+      const textX = centerX + Math.cos(midAngle) * textRadius;
+      const textY = centerY + Math.sin(midAngle) * textRadius;
+      
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pctRound(item.value)}%`, textX, textY);
+      
+      startAngle = endAngle;
+    });
+    
+    // Cercle blanc central
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+}
+
+/* Dessiner un graphique haute qualité pour le PDF */
+function drawHighQualityChartOnCanvas(canvas, data, mode) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Anticrénelage haute qualité
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Fond blanc
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  
+  if (mode === 'bar') {
+    // Graphique en barres haute qualité
+    const maxVal = Math.max(...data.map(d => d.value), 100);
+    const barWidth = Math.max(50, Math.min(120, (width - 200) / data.length));
+    const chartHeight = height - 160;
+    
+    // Axes avec lignes plus épaisses
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(100, 60);
+    ctx.lineTo(100, chartHeight);
+    ctx.lineTo(width - 60, chartHeight);
+    ctx.stroke();
+    
+    // Barres avec bordures
+    data.forEach((item, i) => {
+      const barHeight = (item.value / maxVal) * (chartHeight - 100);
+      const x = 120 + i * (barWidth + 20);
+      const y = chartHeight - barHeight;
+      
+      // Barre
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fillRect(x, y, barWidth, barHeight);
+      
+      // Bordure
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, barWidth, barHeight);
+      
+      // Valeur
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pctRound(item.value)}%`, x + barWidth / 2, y - 16);
+      
+      // Label
+      ctx.fillStyle = '#475569';
+      ctx.font = '20px Arial';
+      const labelLines = wrapTextToLines(item.label, 15);
+      labelLines.forEach((line, lineIndex) => {
+        ctx.fillText(line, x + barWidth / 2, chartHeight + 24 + (lineIndex * 24));
+      });
+    });
+  } else {
+    // Graphique en anneau haute qualité
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.3;
+    const innerRadius = radius * 0.6;
+    
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    let startAngle = -Math.PI / 2;
+    
+    // Segments avec bordures
+    data.forEach((item, i) => {
+      const sliceAngle = (item.value / total) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
+      
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      
+      // Bordure du segment
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      const midAngle = startAngle + sliceAngle / 2;
+      const textRadius = (radius + innerRadius) / 2;
+      const textX = centerX + Math.cos(midAngle) * textRadius;
+      const textY = centerY + Math.sin(midAngle) * textRadius;
+      
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pctRound(item.value)}%`, textX, textY);
+      
+      startAngle = endAngle;
+    });
+    
+    // Cercle blanc central
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    
+    // Bordure du cercle central
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+/* ===== Gestion de la qualité ===== */
+function setQuality(quality) {
+  state.quality = quality;
+  localStorage.setItem('pdf-quality', quality);
+  
+  const qualityToggle = document.getElementById('qualityToggle');
+  const qualityStatus = document.getElementById('qualityStatus');
+  
+  qualityToggle.classList.toggle('on', quality === 'high');
+  qualityToggle.setAttribute('aria-checked', quality === 'high' ? 'true' : 'false');
+  
+  if (quality === 'high') {
+    qualityStatus.textContent = 'Haute qualité';
+    qualityStatus.className = 'quality-badge quality-high';
+  } else {
+    qualityStatus.textContent = 'Taille réduite';
+    qualityStatus.className = 'quality-badge quality-normal';
+  }
+}
+
+/* ===== Interactions ===== */
+document.getElementById('analyzeTextBtn').addEventListener('click', ()=>{
+  const raw = document.getElementById('pasteText').value;
+  state.textQuestions = parseQuestionnaireText(raw);
+  document.getElementById('textStatus').innerHTML = `<span class="badge">${state.textQuestions.length} question(s) détectée(s)</span>`;
+  state.questions = fuseData(state.textQuestions, state.csvQuestions);
+  renderAll();
+});
+document.getElementById('analyzeCSVBtn').addEventListener('click', ()=>{
+  const raw = document.getElementById('pasteCSV').value;
+  state.csvQuestions = parseCSVSmart(raw);
+  document.getElementById('csvStatus').innerHTML = `<span class="badge">${state.csvQuestions.length} question(s) avec données</span>`;
+  state.questions = fuseData(state.textQuestions, state.csvQuestions);
+  renderAll();
+});
+
+// Toggle mode graphique
+const toggle = document.getElementById('toggle');
+function setMode(mode){
+  state.mode = mode; 
+  localStorage.setItem('chart-mode', mode);
+  toggle.classList.toggle('on', mode === 'donut');
+  toggle.setAttribute('aria-checked', mode === 'donut' ? 'true' : 'false');
+  renderAll();
+}
+toggle.addEventListener('click', () => setMode(state.mode === 'bar' ? 'donut' : 'bar'));
+toggle.addEventListener('keydown', (e) => { 
+  if (e.key === ' ' || e.key === 'Enter'){ 
+    e.preventDefault(); 
+    setMode(state.mode === 'bar' ? 'donut' : 'bar'); 
+  } 
+});
+
+// Toggle qualité PDF
+const qualityToggle = document.getElementById('qualityToggle');
+qualityToggle.addEventListener('click', () => setQuality(state.quality === 'normal' ? 'high' : 'normal'));
+qualityToggle.addEventListener('keydown', (e) => { 
+  if (e.key === ' ' || e.key === 'Enter'){ 
+    e.preventDefault(); 
+    setQuality(state.quality === 'normal' ? 'high' : 'normal'); 
+  } 
+});
+
+// Initialisation
+setMode(state.mode);
+setQuality(state.quality);
+
+document.getElementById('exportBtn').addEventListener('click', exportPDF);
+
+/* ===== Chargement des bibliothèques externes ===== */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// Charger les bibliothèques nécessaires pour l'export PDF
+Promise.all([
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+]).then(() => {
+  console.log('Bibliothèque PDF chargée avec succès');
+}).catch(error => {
+  console.error('Erreur lors du chargement de la bibliothèque PDF:', error);
+  alert('Erreur lors du chargement de la bibliothèque nécessaire pour l\'export PDF. Vérifiez votre connexion Internet.');
+});
+</script>
+</body>
+</html>
