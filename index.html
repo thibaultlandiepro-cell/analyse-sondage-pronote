@@ -25,8 +25,14 @@
   .hint{color:var(--muted);font-size:12px}
 
   .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .controls .btn{background:#eef2ff;border:1px solid var(--grid);color:#1e293b;padding:10px 12px;border-radius:10px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+  .controls .btn{background:#eef2ff;border:1px solid var(--grid);color:#1e293b;padding:10px 12px;border-radius:10px;cursor:pointer;display:inline-flex;gap:8px;align-items:center; transition: background 0.2s;}
   .controls .btn:hover{background:#e0e7ff}
+  
+  /* Boutons de sélection de modèles */
+  .model-btn { background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight: 500; transition: all 0.2s; }
+  .model-btn:hover { background:#e2e8f0; border-color:#94a3b8; }
+  .model-btn.active { background:#dbeafe; border-color:#2563eb; color:#1e40af; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+
   .mode{display:inline-flex;align-items:center;gap:10px;background:#eef2ff;border:1px solid var(--grid);border-radius:20px;padding:6px 10px}
   .toggle{position:relative;width:64px;height:28px;background:#cbd5e1;border-radius:18px;border:1px solid #94a3b8;cursor:pointer}
   .toggle .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:transform .25s ease}
@@ -48,9 +54,9 @@
   .qcard{
     background:var(--panel);border:1px solid var(--grid);border-radius:12px;
     padding:8px 12px;min-height:250px;display:flex;flex-direction:column;gap:6px;
-    width:100%; /* Largeur fixe */
-    max-width:100%; /* Empêche le débordement */
-    overflow:hidden; /* Cache tout débordement */
+    width:100%; 
+    max-width:100%; 
+    overflow:hidden; 
   }
   .qhead{display:flex;align-items:flex-start;gap:10px;justify-content:space-between;width:100%}
   .qtitle{font-size:15px;line-height:1.3;font-weight:650;max-width:86%;word-wrap:break-word}
@@ -99,7 +105,7 @@
         <div class="logo" aria-hidden="true"></div>
         <div>
           <h1>Analyseur Sondage Pronote</h1>
-          <div class="hint">Colle le questionnaire et le CSV large, bascule l'affichage, puis exporte un PDF fichier soigné</div>
+          <div class="hint">Charge un modèle, colle le CSV large, puis exporte un PDF soigné</div>
         </div>
       </div>
       <div class="controls">
@@ -122,10 +128,18 @@
 
     <div class="workspace">
       <section class="panel">
-        <h3>1) Coller le texte du questionnaire</h3>
-        <p class="small">Colle le bloc "Question 1 …" puis clique Analyser le texte; l'ordre des options est conservé.</p>
-        <textarea id="pasteText" placeholder="Ex.: Question 1 … Oui / Non … Question 2 …"></textarea>
-        <div class="row">
+        <h3>1) Choisir ou coller le questionnaire</h3>
+        <p class="small">Sélectionnez un modèle officiel pré-intégré ou collez votre propre texte de formulaire.</p>
+        
+        <div class="row" style="margin-bottom: 12px; gap: 12px;">
+          <button class="model-btn" id="btnModeleEcole" type="button">🏫 Modèle École</button>
+          <button class="model-btn" id="btnModeleCollege" type="button">🎒 Modèle Collège</button>
+          <button class="model-btn" id="btnModeleLycee" type="button">🎓 Modèle Lycée</button>
+        </div>
+
+        <textarea id="pasteText" placeholder="Cliquez sur un bouton ci-dessus pour pré-remplir, ou collez votre propre questionnaire ici (Ex.: Question 1 … Oui / Non …)"></textarea>
+        
+        <div class="row" style="margin-top: 10px;">
           <button class="btn" id="analyzeTextBtn" type="button">▶️ Analyser le texte</button>
           <div class="status" id="textStatus"><span class="badge">En attente de texte</span></div>
         </div>
@@ -133,9 +147,9 @@
 
       <section class="panel">
         <h3>2) Coller les données CSV (format large)</h3>
-        <p class="small">Colle le tableau avec entêtes "Question n" en colonnes, la ligne d'étiquettes ("répondu | Oui | Non …"), la ligne de cohorte "Libellé (N)" avec pourcentages, et/ou les lignes individuelles "X".</p>
-        <textarea id="pasteCSV" placeholder="Colle ici le CSV tabulé/;/, tel que copié depuis le tableur"></textarea>
-        <div class="row">
+        <p class="small">Colle le tableau avec entêtes "Question n" en colonnes, tel que copié depuis Pronote.</p>
+        <textarea id="pasteCSV" placeholder="Colle ici le CSV tabulé ou point-virgule..."></textarea>
+        <div class="row" style="margin-top: 10px;">
           <button class="btn" id="analyzeCSVBtn" type="button">▶️ Analyser le CSV</button>
           <div class="status" id="csvStatus"><span class="badge">En attente de CSV collé</span></div>
         </div>
@@ -149,10 +163,677 @@
   </div>
 
 <script>
+/* ===== Modèles de questionnaires ===== */
+const MODELE_ECOLE = `Question 1
+As-tu peur sur le trajet de l'école à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 2
+As-tu peur d'aller à l'école à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 3
+As-tu menti pour rester chez toi par peur de retrouver un ou plusieurs élèves à l'école?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 4
+As-tu du mal à faire tes devoirs à cause de ce que tu vis à l'école ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 5
+As-tu du mal à t'endormir ou fais-tu des cauchemars à cause de ce que tu vis à l'école?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 6
+As-tu mal au ventre ou à la tête à cause de ce que tu vis à l'école ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 7
+Est-ce que tu te sens triste à cause de ce que tu vis à l'école ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 8
+Est-ce que tu te sens seul(e) à l'école ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 9
+Te mets-tu en colère ou es-tu agressif(ve) sans savoir pourquoi ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 10
+As-tu peur d'aller en récréation à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 11
+As-tu été mis(e) à l'écart dans la classe ou à la récréation par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 12
+Est-ce qu'un ou plusieurs élèves t'empêchent de déjeuner tranquillement à la cantine?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 13
+Est-ce qu'un ou plusieurs élèves racontent des choses fausses ou méchantes sur toi ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 14
+Est-ce qu'un ou plusieurs élèves t'ont donné un surnom méchant ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 15
+Est-ce qu'un ou plusieurs élèves se moquent de toi ou t'insultent (par exemple, à propos de la couleur de ta peau, de tes origines ou de ton physique)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 16
+T'es-tu bagarré(e) avec un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 17
+Est-ce qu'un ou plusieurs élèves t'ont fait du mal exprès (par exemple, en te bousculant ou en te lançant un objet)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 18
+Est-ce qu'un ou plusieurs élèves t'ont volé des affaires ou ont menacé de le faire ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 19
+As-tu été embêté(e) quand tu étais aux toilettes par un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 20
+As-tu vu ou reçu des messages sur toi, insultants ou menaçants, venant d'un ou plusieurs élèves, sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 21
+As-tu participé à un jeu qui te semble dangereux à la demande d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 22
+Est-ce qu'un ou plusieurs élèves ont essayé de te retirer tes habits?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 23
+Est-ce qu'un ou plusieurs élèves ont essayé de toucher des parties de ton corps ou de t'embrasser sans que tu dises oui?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 24
+Un ou plusieurs élèves font-ils circuler sur toi, sans ton accord, des photos ou messages sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent`;
+
+const MODELE_COLLEGE = `Question 1
+As-tu peur sur le trajet du collège à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 2
+As-tu peur d'aller au collège à cause d'un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 3
+As-tu menti pour rester chez toi par peur de retrouver un ou plusieurs élèves au collège ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 4
+As-tu séché les cours à cause de tes relations avec un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 5
+Tes notes baissent-elles à cause de ce que tu vis au collège?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 6
+Te sens-tu démotivé(e) à cause de ce que tu vis au collège ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 7
+As-tu du mal à faire tes devoirs à cause de ce que tu vis au collège?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 8
+As-tu du mal à t'endormir ou fais-tu des cauchemars à cause de ce que tu vis au collège?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 9
+As-tu mal au ventre ou à la tête à cause de ce que tu vis au collège?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 10
+Est-ce que tu te sens triste à cause de ce que tu vis au collège?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 11
+Est-ce que tu te sens seul(e) au collège ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 12
+As-tu peur d'aller en récréation à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 13
+Te mets-tu en colère ou es-tu agressif(ve) sans savoir pourquoi ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 14
+Es-tu exclu(e) des groupes de travail par un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 15
+As-tu été mis(e) à l'écart dans la cour par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 16
+Manges-tu seul(e) à la cantine?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 17
+Est-ce qu'un ou plusieurs élèves t'empêchent de déjeuner tranquillement à la cantine?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 18
+Est-ce qu'un ou plusieurs élèves se moquent de toi ou t'insultent (par exemple, à propos de ton physique, de tes origines, de tes croyances ou de ton orientation sexuelle)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 19
+Est-ce qu'un ou plusieurs élèves font courir des rumeurs sur toi ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 20
+Est-ce qu'un ou plusieurs élèves te rabaissent ou t'humilient ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 21
+Est-ce qu'un ou plusieurs élèves t'ont déjà menacé(e)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 22
+T'es-tu bagarré(e) avec un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 23
+Est-ce qu'un ou plusieurs élèves t'ont bousculé(e) volontairement ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 24
+As-tu été agressé(e) physiquement par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 25
+Est-ce qu'un ou plusieurs élèves t'ont volé des affaires ou ont menacé de le faire ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 26
+As-tu participé à un jeu qui te semble dangereux à la demande d'un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 27
+As-tu été embêté(e) quand tu étais aux toilettes par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 28
+Est-ce qu'un ou plusieurs élèves ont essayé de te retirer tes habits?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 29
+As-tu vu ou reçu des messages insultants ou menaçants te concernant, venant d'un ou plusieurs élèves, sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 30
+Un ou plusieurs élèves font-ils circuler sans ton accord, des photos ou messages sur toi, sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 31
+Un ou plusieurs élèves font-ils circuler sans ton accord, des photos ou des vidéos intimes de toi sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 32
+Un ou plusieurs élèves font-ils circuler sans ton accord, tes coordonnées sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 33
+Es-tu victime d'insultes à caractère sexuel de la part d'un ou plusieurs élèves sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 34
+As-tu subi des violences à caractère sexuel (attouchements, baisers forcés, voyeurisme, etc.) de la part d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent`;
+
+const MODELE_LYCEE = `Question 1
+Avez-vous peur sur le trajet du lycée à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 2
+Avez-vous peur d'aller au lycée à cause d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 3
+Avez-vous menti pour rester chez vous par peur de retrouver un ou plusieurs élèves au lycée ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 4
+Avez-vous séché les cours à cause de vos relations avec un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 5
+Vos notes baissent-elles à cause de ce que vous vivez au lycée ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 6
+Vous sentez-vous démotivé(e) à cause de ce que vous vivez au lycée ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 7
+Avez-vous du mal à faire vos devoirs à cause de ce que vous vivez au lycée?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 8
+Avez-vous du mal à vous endormir ou faites-vous des cauchemars à cause de ce que vous vivez au lycée?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 9
+Avez-vous mal au ventre ou à la tête à cause de ce que vous vivez au lycée?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 10
+Est-ce que vous vous sentez triste à cause de ce que vous vivez au lycée ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 11
+Est-ce que vous vous sentez seul(e) au lycée ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 12
+Avez-vous peur d'aller en pause à cause d'un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 13
+Vous mettez-vous en colère ou êtes-vous agressif(ve) sans savoir pourquoi ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 14
+Êtes-vous exclu(e) des groupes de travail par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 15
+Avez-vous été mis(e) à l'écart dans la cour par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 16
+Mangez-vous seul(e) à la cantine?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 17
+Est-ce qu'un ou plusieurs élèves vous empêchent de déjeuner tranquillement à la cantine?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 18
+Est-ce qu'un ou plusieurs élèves se moquent de vous ou vous insultent (par exemple, à propos de votre physique, de vos origines, de vos croyances ou de votre orientation sexuelle)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 19
+Est-ce qu'un ou plusieurs élèves font courir des rumeurs sur vous ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 20
+Est-ce qu'un ou plusieurs élèves vous rabaissent ou vous humilient?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 21
+Est-ce qu'un ou plusieurs élèves vous ont déjà menacé(e)?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 22
+Vous êtes-vous bagarré(e) avec un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 23
+Est-ce qu'un ou plusieurs élèves vous ont bousculé(e) volontairement ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 24
+Avez-vous été agressé(e) physiquement par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 25
+Est-ce qu'un ou plusieurs élèves vous ont volé des affaires ou menacé de le faire ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 26
+Avez-vous participé à un jeu qui vous semble dangereux à la demande d'un ou plusieurs élèves?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 27
+Avez-vous été embêté(e) quand vous étiez aux toilettes par un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 28
+Est-ce qu'un ou plusieurs élèves ont essayé de vous retirer vos habits?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 29
+Avez-vous vu ou reçu des messages insultants ou menaçants vous concernant, venant d'un ou plusieurs élèves, sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 30
+Un ou plusieurs élèves font-ils circuler sans votre accord, des photos ou messages sur vous sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 31
+Un ou plusieurs élèves font-ils circuler sans votre accord, des photos ou des vidéos intimes de vous sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 32
+Un ou plusieurs élèves font-ils circuler sans votre accord, vos coordonnées sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 33
+Étes-vous victime d'insultes à caractère sexuel de la part d'un ou plusieurs élèves sur un téléphone portable, sur les réseaux sociaux ou sur une plateforme de jeux en ligne ?
+Jamais
+Parfois
+Souvent
+Très souvent
+
+Question 34
+Avez-vous subi des violences à caractère sexuel (attouchements, baisers forcés, voyeurisme, etc.) de la part d'un ou plusieurs élèves ?
+Jamais
+Parfois
+Souvent
+Très souvent`;
+
+/* ===== Gestion des boutons ===== */
+function chargerModele(texte, btnId) {
+  // Réinitialiser les classes actives
+  document.querySelectorAll('.model-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(btnId).classList.add('active');
+  
+  // Charger le texte
+  const textArea = document.getElementById('pasteText');
+  textArea.value = texte;
+  
+  // Analyser
+  state.textQuestions = parseQuestionnaireText(texte);
+  document.getElementById('textStatus').innerHTML = `<span class="badge" style="background:#dcfce7;color:#166534;">${state.textQuestions.length} question(s) détectée(s) (Modèle chargé)</span>`;
+  state.questions = fuseData(state.textQuestions, state.csvQuestions);
+  renderAll();
+}
+
+document.getElementById('btnModeleEcole').addEventListener('click', () => chargerModele(MODELE_ECOLE, 'btnModeleEcole'));
+document.getElementById('btnModeleCollege').addEventListener('click', () => chargerModele(MODELE_COLLEGE, 'btnModeleCollege'));
+document.getElementById('btnModeleLycee').addEventListener('click', () => chargerModele(MODELE_LYCEE, 'btnModeleLycee'));
+
+
 /* ===== État ===== */
 const state = {
   mode: localStorage.getItem('chart-mode') || 'bar',
-  quality: localStorage.getItem('pdf-quality') || 'normal', // 'normal' ou 'high'
+  quality: localStorage.getItem('pdf-quality') || 'normal', 
   textQuestions: [],
   csvQuestions: [],
   questions: []
@@ -248,7 +929,6 @@ function parseCSVPronoteLarge(rows){
   for (let k=0;k<qCols.length;k++){
     const start = qCols[k].idx;
     const end = (k<qCols.length-1 ? qCols[k+1].idx : h1.length);
-    // Étiquettes en 2e ligne (ignorer "répondu")
     const labels = [];
     for (let c=start;c<end;c++){
       const lab = (h2[c]||'').replace(/^"(.*)"$/,'$1').trim();
@@ -267,12 +947,11 @@ function parseCSVPronoteLarge(rows){
         return {label, value: pctRound(v)};
       });
     } else {
-      // Calcul depuis les "X"
       const idxStart = 2;
       const counts = labels.map(()=>0);
       for (let r=idxStart;r<rows.length;r++){
         const joinedFirst = ((rows[r][0]||'') + ' ' + (rows[r][1]||'')).trim();
-        if (/\(\s*\d+\s*\)/.test(joinedFirst)) continue; // cohorte
+        if (/\(\s*\d+\s*\)/.test(joinedFirst)) continue; 
         labels.forEach(({col},i)=>{
           const v = (rows[r][col]||'').trim();
           if (/^x$/i.test(v)) counts[i] += 1;
@@ -289,7 +968,7 @@ function parseCSVGeneric(rows){
   if (!rows.length) return [];
   const header = rows[0].map(h=>deburr(h||''));
   const body = rows.slice(1).filter(r=>r.some(x=>x && x.length));
-  let cQ = header.findIndex(h=>/(^q(uestion)?$)|(^titre$)|(^title$)/.test(h)); if (cQ<0) cQ=0;
+  let cQ = header.findIndex(h=>/(^q(uestion)?$)|(^titre$)\vert{}(^title$)/.test(h)); if (cQ<0) cQ=0;
   let cL = header.findIndex(h=>/(reponse|reponses|option|choix|label|intitule)/.test(h)); if (cL<0) cL=1;
   let cP = header.findIndex(h=>/(pourc|percent|pourcentage|%|valeur|value)/.test(h));
   let cN = header.findIndex(h=>/(nombre|effectif|count)/.test(h));
@@ -344,21 +1023,18 @@ function fuseData(textQs, csvQs){
   return fused.length ? fused : csvQs;
 }
 
-/* ===== Rendu à l'écran (SVG) avec largeur fixe ===== */
+/* ===== Rendu à l'écran (SVG) ===== */
 function renderBarChart(container, series){
   container.innerHTML='';
   const W = container.clientWidth || 800;
-  const H = 200; // Hauteur fixe
+  const H = 200; 
   
-  // Calculer la largeur des barres en fonction du nombre de réponses
-  const maxBarWidth = 60; // Largeur maximale d'une barre
-  const minBarWidth = 20; // Largeur minimale d'une barre
-  const gap = 10; // Espacement entre les barres
+  const maxBarWidth = 60; 
+  const minBarWidth = 20; 
+  const gap = 10; 
   
-  // Calculer la largeur totale nécessaire
   const totalWidthNeeded = series.length * (maxBarWidth + gap);
   
-  // Ajuster la largeur des barres si nécessaire
   let barWidth = maxBarWidth;
   if (totalWidthNeeded > W) {
     barWidth = Math.max(minBarWidth, (W - (series.length * gap)) / series.length);
@@ -366,7 +1042,6 @@ function renderBarChart(container, series){
   
   const svg = makeSVG('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%'});
   
-  // Grille de fond
   const grid = makeSVG('g',{});
   for (let x=0;x<=10;x++){ 
     const xx=Math.round(x*W/10); 
@@ -379,16 +1054,13 @@ function renderBarChart(container, series){
   const baseY = H - 30;
 
   series.forEach((s,i)=>{
-    const availableWidth = W - (padding * 2);
     const x = padding + i * (barWidth + gap);
     const h = Math.round((s.value/maxVal)*(H-60));
     const y = baseY - h;
     const color = COLORS[i%COLORS.length];
     
-    // Barre
     svg.appendChild(makeSVG('rect',{x,y,width:barWidth,height:h,fill:color,rx:4,ry:4}));
     
-    // Pourcentage au-dessus de la barre
     svg.appendChild(makeSVG('text',{
       x:x+barWidth/2,
       y:y-6,
@@ -397,8 +1069,7 @@ function renderBarChart(container, series){
       fill:'#0f172a'
     }, `${pctRound(s.value)}%`));
     
-    // Libellé sous la barre (avec gestion du texte multiligne)
-    const labelLines = wrapTextToLines(s.label, 12); // 12 caractères max par ligne
+    const labelLines = wrapTextToLines(s.label, 12); 
     labelLines.forEach((line, lineIndex) => {
       svg.appendChild(makeSVG('text',{
         x:x+barWidth/2,
@@ -415,13 +1086,13 @@ function renderBarChart(container, series){
 function renderDonutChart(container, series){
   container.innerHTML='';
   const W = container.clientWidth || 800;
-  const H = 200; // Hauteur fixe
+  const H = 200; 
   
   const svg = makeSVG('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%'});
   
   const cx = Math.floor(W/2);
   const cy = Math.floor(H/2);
-  const outer = Math.min(W, H) * 0.35; // Taille réduite pour s'adapter
+  const outer = Math.min(W, H) * 0.35; 
   const inner = outer * 0.6;
   const total = series.reduce((a,b)=>a+b.value,0) || 1;
   
@@ -457,7 +1128,6 @@ function renderDonutChart(container, series){
   container.appendChild(svg);
 }
 
-// Fonction utilitaire pour diviser le texte en lignes
 function wrapTextToLines(text, maxCharsPerLine) {
   const words = text.split(' ');
   const lines = [];
@@ -476,18 +1146,10 @@ function wrapTextToLines(text, maxCharsPerLine) {
   return lines;
 }
 
-function polar(cx,cy,r,a){ 
-  return {
-    x: Math.round(cx + r * Math.cos(a)), 
-    y: Math.round(cy + r * Math.sin(a))
-  }; 
-}
-
+function polar(cx,cy,r,a){ return { x: Math.round(cx + r * Math.cos(a)), y: Math.round(cy + r * Math.sin(a)) }; }
 function makeSVG(tag, attrs, text){ 
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag); 
-  for(const k in attrs){ 
-    el.setAttribute(k, attrs[k]); 
-  } 
+  for(const k in attrs){ el.setAttribute(k, attrs[k]); } 
   if (text) el.textContent = text; 
   return el; 
 }
@@ -537,7 +1199,6 @@ function renderAll(){
         sw.style.background = COLORS[i%COLORS.length]; 
         
         const txt = document.createElement('span'); 
-        // Gérer les libellés longs dans la légende
         const labelText = d.label.length > 30 ? d.label.substring(0, 27) + '...' : d.label;
         txt.textContent = `${labelText} — ${pctRound(d.value)}%`; 
         
@@ -547,11 +1208,8 @@ function renderAll(){
       
       card.appendChild(legend);
       
-      if (state.mode === 'bar') {
-        renderBarChart(chart, q.data);
-      } else {
-        renderDonutChart(chart, q.data);
-      }
+      if (state.mode === 'bar') { renderBarChart(chart, q.data); } 
+      else { renderDonutChart(chart, q.data); }
     } else {
       const box = document.createElement('div'); 
       box.className = 'free';
@@ -582,7 +1240,7 @@ function renderAll(){
   });
 }
 
-/* ===== Export PDF avec qualité sélectionnable ===== */
+/* ===== Export PDF ===== */
 async function exportPDF(){
   if (!state.questions.length){ 
     alert('Aucune donnée à exporter'); 
@@ -590,7 +1248,6 @@ async function exportPDF(){
   }
   
   try {
-    // Afficher un indicateur de chargement
     const exportBtn = document.getElementById('exportBtn');
     const originalText = exportBtn.innerHTML;
     exportBtn.innerHTML = state.quality === 'high' ? '⏳ Génération PDF (Haute qualité)...' : '⏳ Génération PDF...';
@@ -599,7 +1256,6 @@ async function exportPDF(){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
     
-    // En-tête du document
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.text('Rapport d\'analyse du sondage', 105, 20, { align: 'center' });
@@ -608,19 +1264,16 @@ async function exportPDF(){
     doc.setFont('helvetica', 'normal');
     doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
     
-    let yPosition = 50; // Position verticale initiale
+    let yPosition = 50; 
     
-    // Ajouter chaque question
     for (let i = 0; i < state.questions.length; i++) {
       const q = state.questions[i];
       
-      // Vérifier si on doit ajouter une nouvelle page
       if (yPosition > 250) {
         doc.addPage();
         yPosition = 20;
       }
       
-      // Titre de la question
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       const questionTitle = `Q${q.number || i + 1} — ${q.title}`;
@@ -629,30 +1282,24 @@ async function exportPDF(){
       yPosition += titleLines.length * 7 + 5;
       
       if (q.type === 'choices') {
-        // Créer un canvas selon la qualité sélectionnée
         const canvas = document.createElement('canvas');
         
         if (state.quality === 'high') {
-          // Mode haute qualité
-          canvas.width = 1200; // Haute résolution
+          canvas.width = 1200; 
           canvas.height = 600;
           drawHighQualityChartOnCanvas(canvas, q.data, state.mode);
-          // Utiliser PNG pour la haute qualité
           const imgData = canvas.toDataURL('image/png', 1.0);
           doc.addImage(imgData, 'PNG', 20, yPosition, 170, 80);
         } else {
-          // Mode qualité normale
-          canvas.width = 600; // Résolution standard
+          canvas.width = 600; 
           canvas.height = 300;
           drawOptimizedChartOnCanvas(canvas, q.data, state.mode);
-          // Utiliser JPEG compressé pour la taille réduite
           const imgData = canvas.toDataURL('image/jpeg', 0.7);
           doc.addImage(imgData, 'JPEG', 20, yPosition, 170, 80);
         }
         
         yPosition += 90;
         
-        // Légende
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         
@@ -663,18 +1310,15 @@ async function exportPDF(){
           const legendText = `${item.label} — ${pctRound(item.value)}%`;
           const textWidth = doc.getTextWidth(legendText);
           
-          // Vérifier si on dépasse la largeur de la page
           if (legendX + textWidth > 180) {
             legendX = 20;
             legendY += 5;
             yPosition += 5;
           }
           
-          // Carré de couleur
           doc.setFillColor(COLORS[idx % COLORS.length]);
           doc.rect(legendX, legendY - 3, 4, 4, 'F');
           
-          // Texte
           doc.text(legendText, legendX + 6, legendY);
           
           legendX += textWidth + 15;
@@ -682,62 +1326,51 @@ async function exportPDF(){
         
         yPosition += 15;
       } else {
-        // Pour les questions libres
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text('Réponses libres - Données non disponibles pour l\'export', 20, yPosition);
         yPosition += 15;
       }
       
-      yPosition += 10; // Espace entre les questions
+      yPosition += 10; 
     }
     
-    // Pied de page avec indication de qualité
     doc.setFontSize(10);
     doc.setTextColor(128, 128, 128);
     const qualityText = state.quality === 'high' ? ' (Haute qualité)' : ' (Taille optimisée)';
     doc.text('Document généré par Analyseur Sondage Pronote' + qualityText, 105, 280, { align: 'center' });
     
-    // Télécharger le PDF
     const fileName = state.quality === 'high' ? 'rapport-sondage-hq.pdf' : 'rapport-sondage.pdf';
     doc.save(fileName);
     
-    // Restaurer le bouton
     exportBtn.innerHTML = originalText;
     exportBtn.disabled = false;
     
   } catch (error) {
     console.error('Erreur lors de l\'export PDF:', error);
     alert('Erreur lors de l\'export PDF: ' + error.message);
-    
-    // Restaurer le bouton en cas d'erreur
     const exportBtn = document.getElementById('exportBtn');
     exportBtn.innerHTML = '🧾 Exporter PDF';
     exportBtn.disabled = false;
   }
 }
 
-/* Dessiner un graphique optimisé pour le PDF (qualité normale) */
 function drawOptimizedChartOnCanvas(canvas, data, mode) {
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
   
-  // Anticrénelage standard
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
   
-  // Fond blanc
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
   
   if (mode === 'bar') {
-    // Graphique en barres optimisé
     const maxVal = Math.max(...data.map(d => d.value), 100);
     const barWidth = Math.max(25, Math.min(60, (width - 100) / data.length));
     const chartHeight = height - 80;
     
-    // Axes
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -746,7 +1379,6 @@ function drawOptimizedChartOnCanvas(canvas, data, mode) {
     ctx.lineTo(width - 30, chartHeight);
     ctx.stroke();
     
-    // Barres
     data.forEach((item, i) => {
       const barHeight = (item.value / maxVal) * (chartHeight - 50);
       const x = 60 + i * (barWidth + 10);
@@ -755,14 +1387,12 @@ function drawOptimizedChartOnCanvas(canvas, data, mode) {
       ctx.fillStyle = COLORS[i % COLORS.length];
       ctx.fillRect(x, y, barWidth, barHeight);
       
-      // Valeur
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${pctRound(item.value)}%`, x + barWidth / 2, y - 8);
       
-      // Label
       ctx.fillStyle = '#475569';
       ctx.font = '10px Arial';
       const labelLines = wrapTextToLines(item.label, 12);
@@ -771,7 +1401,6 @@ function drawOptimizedChartOnCanvas(canvas, data, mode) {
       });
     });
   } else {
-    // Graphique en anneau optimisé
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) * 0.3;
@@ -805,7 +1434,6 @@ function drawOptimizedChartOnCanvas(canvas, data, mode) {
       startAngle = endAngle;
     });
     
-    // Cercle blanc central
     ctx.beginPath();
     ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
     ctx.fillStyle = '#ffffff';
@@ -813,27 +1441,22 @@ function drawOptimizedChartOnCanvas(canvas, data, mode) {
   }
 }
 
-/* Dessiner un graphique haute qualité pour le PDF */
 function drawHighQualityChartOnCanvas(canvas, data, mode) {
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
   
-  // Anticrénelage haute qualité
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   
-  // Fond blanc
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
   
   if (mode === 'bar') {
-    // Graphique en barres haute qualité
     const maxVal = Math.max(...data.map(d => d.value), 100);
     const barWidth = Math.max(50, Math.min(120, (width - 200) / data.length));
     const chartHeight = height - 160;
     
-    // Axes avec lignes plus épaisses
     ctx.strokeStyle = '#94a3b8';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -842,29 +1465,24 @@ function drawHighQualityChartOnCanvas(canvas, data, mode) {
     ctx.lineTo(width - 60, chartHeight);
     ctx.stroke();
     
-    // Barres avec bordures
     data.forEach((item, i) => {
       const barHeight = (item.value / maxVal) * (chartHeight - 100);
       const x = 120 + i * (barWidth + 20);
       const y = chartHeight - barHeight;
       
-      // Barre
       ctx.fillStyle = COLORS[i % COLORS.length];
       ctx.fillRect(x, y, barWidth, barHeight);
       
-      // Bordure
       ctx.strokeStyle = '#1e293b';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, barWidth, barHeight);
       
-      // Valeur
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${pctRound(item.value)}%`, x + barWidth / 2, y - 16);
       
-      // Label
       ctx.fillStyle = '#475569';
       ctx.font = '20px Arial';
       const labelLines = wrapTextToLines(item.label, 15);
@@ -873,7 +1491,6 @@ function drawHighQualityChartOnCanvas(canvas, data, mode) {
       });
     });
   } else {
-    // Graphique en anneau haute qualité
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) * 0.3;
@@ -882,7 +1499,6 @@ function drawHighQualityChartOnCanvas(canvas, data, mode) {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     let startAngle = -Math.PI / 2;
     
-    // Segments avec bordures
     data.forEach((item, i) => {
       const sliceAngle = (item.value / total) * 2 * Math.PI;
       const endAngle = startAngle + sliceAngle;
@@ -894,127 +1510,4 @@ function drawHighQualityChartOnCanvas(canvas, data, mode) {
       ctx.fillStyle = COLORS[i % COLORS.length];
       ctx.fill();
       
-      // Bordure du segment
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-      
-      const midAngle = startAngle + sliceAngle / 2;
-      const textRadius = (radius + innerRadius) / 2;
-      const textX = centerX + Math.cos(midAngle) * textRadius;
-      const textY = centerY + Math.sin(midAngle) * textRadius;
-      
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 24px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${pctRound(item.value)}%`, textX, textY);
-      
-      startAngle = endAngle;
-    });
-    
-    // Cercle blanc central
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, innerRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    
-    // Bordure du cercle central
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-}
-
-/* ===== Gestion de la qualité ===== */
-function setQuality(quality) {
-  state.quality = quality;
-  localStorage.setItem('pdf-quality', quality);
-  
-  const qualityToggle = document.getElementById('qualityToggle');
-  const qualityStatus = document.getElementById('qualityStatus');
-  
-  qualityToggle.classList.toggle('on', quality === 'high');
-  qualityToggle.setAttribute('aria-checked', quality === 'high' ? 'true' : 'false');
-  
-  if (quality === 'high') {
-    qualityStatus.textContent = 'Haute qualité';
-    qualityStatus.className = 'quality-badge quality-high';
-  } else {
-    qualityStatus.textContent = 'Taille réduite';
-    qualityStatus.className = 'quality-badge quality-normal';
-  }
-}
-
-/* ===== Interactions ===== */
-document.getElementById('analyzeTextBtn').addEventListener('click', ()=>{
-  const raw = document.getElementById('pasteText').value;
-  state.textQuestions = parseQuestionnaireText(raw);
-  document.getElementById('textStatus').innerHTML = `<span class="badge">${state.textQuestions.length} question(s) détectée(s)</span>`;
-  state.questions = fuseData(state.textQuestions, state.csvQuestions);
-  renderAll();
-});
-document.getElementById('analyzeCSVBtn').addEventListener('click', ()=>{
-  const raw = document.getElementById('pasteCSV').value;
-  state.csvQuestions = parseCSVSmart(raw);
-  document.getElementById('csvStatus').innerHTML = `<span class="badge">${state.csvQuestions.length} question(s) avec données</span>`;
-  state.questions = fuseData(state.textQuestions, state.csvQuestions);
-  renderAll();
-});
-
-// Toggle mode graphique
-const toggle = document.getElementById('toggle');
-function setMode(mode){
-  state.mode = mode; 
-  localStorage.setItem('chart-mode', mode);
-  toggle.classList.toggle('on', mode === 'donut');
-  toggle.setAttribute('aria-checked', mode === 'donut' ? 'true' : 'false');
-  renderAll();
-}
-toggle.addEventListener('click', () => setMode(state.mode === 'bar' ? 'donut' : 'bar'));
-toggle.addEventListener('keydown', (e) => { 
-  if (e.key === ' ' || e.key === 'Enter'){ 
-    e.preventDefault(); 
-    setMode(state.mode === 'bar' ? 'donut' : 'bar'); 
-  } 
-});
-
-// Toggle qualité PDF
-const qualityToggle = document.getElementById('qualityToggle');
-qualityToggle.addEventListener('click', () => setQuality(state.quality === 'normal' ? 'high' : 'normal'));
-qualityToggle.addEventListener('keydown', (e) => { 
-  if (e.key === ' ' || e.key === 'Enter'){ 
-    e.preventDefault(); 
-    setQuality(state.quality === 'normal' ? 'high' : 'normal'); 
-  } 
-});
-
-// Initialisation
-setMode(state.mode);
-setQuality(state.quality);
-
-document.getElementById('exportBtn').addEventListener('click', exportPDF);
-
-/* ===== Chargement des bibliothèques externes ===== */
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-// Charger les bibliothèques nécessaires pour l'export PDF
-Promise.all([
-  loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
-]).then(() => {
-  console.log('Bibliothèque PDF chargée avec succès');
-}).catch(error => {
-  console.error('Erreur lors du chargement de la bibliothèque PDF:', error);
-  alert('Erreur lors du chargement de la bibliothèque nécessaire pour l\'export PDF. Vérifiez votre connexion Internet.');
-});
-</script>
-</body>
-</html>
